@@ -1,5 +1,8 @@
 name: Aptabase CI (configurable)
-on: push
+on: 
+  push:
+    branches:
+      - main
 
 env:
   REGISTRY: ghcr.io
