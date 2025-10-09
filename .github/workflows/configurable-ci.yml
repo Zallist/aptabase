@@ -3,7 +3,7 @@ on: push
 
 env:
   REGISTRY: ghcr.io
-  REPOSITORY: ${{ github.repository }}
+  REPOSITORY: ${{ env.REPOSITORY || github.repository_owner }}
   IMAGE_NAME: aptabase
   IMAGE_TAG: ${{ github.ref_name }}
 
