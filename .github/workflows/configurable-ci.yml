@@ -1,7 +1,11 @@
 name: Aptabase CI (configurable)
-on:
-  push:
-    branches: [ "ci" ]
+on: push
+
+env:
+  REGISTRY: ghcr.io
+  REPOSITORY: ${{ github.repository }}
+  IMAGE_NAME: aptabase
+  IMAGE_TAG: ${{ github.ref_name }}
 
 permissions:
   id-token: write
@@ -119,18 +123,14 @@ jobs:
 
       - name: Push to GitHub Container Registry
         run: |
-          docker tag aptabase:amd64 $REGISTRY/$REPOSITORY:$IMAGE_TAG-amd64
-          docker push $REGISTRY/$REPOSITORY:$IMAGE_TAG-amd64
-          docker tag aptabase:arm64 $REGISTRY/$REPOSITORY:$IMAGE_TAG-arm64
-          docker push $REGISTRY/$REPOSITORY:$IMAGE_TAG-arm64
+          docker tag aptabase:amd64 $REGISTRY/$REPOSITORY/$IMAGE_NAME:$IMAGE_TAG-amd64
+          docker push $REGISTRY/$REPOSITORY/$IMAGE_NAME:$IMAGE_TAG-amd64
+          docker tag aptabase:arm64 $REGISTRY/$REPOSITORY/$IMAGE_NAME:$IMAGE_TAG-arm64
+          docker push $REGISTRY/$REPOSITORY/$IMAGE_NAME:$IMAGE_TAG-arm64
 
           docker manifest create \
-            $REGISTRY/$REPOSITORY:$IMAGE_TAG \
-            --amend $REGISTRY/$REPOSITORY:$IMAGE_TAG-amd64 \
-            --amend $REGISTRY/$REPOSITORY:$IMAGE_TAG-arm64
+            $REGISTRY/$REPOSITORY/$IMAGE_NAME:$IMAGE_TAG \
+            --amend $REGISTRY/$REPOSITORY/$IMAGE_NAME:$IMAGE_TAG-amd64 \
+            --amend $REGISTRY/$REPOSITORY/$IMAGE_NAME:$IMAGE_TAG-arm64
 
-          docker manifest push $REGISTRY/$REPOSITORY:$IMAGE_TAG
-        #env:
-        #  REGISTRY: ghcr.io/aptabase
-        #  REPOSITORY: aptabase
-        #  IMAGE_TAG: main
+          docker manifest push $REGISTRY/$REPOSITORY/$IMAGE_NAME:$IMAGE_TAG
