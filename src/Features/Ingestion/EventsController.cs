@@ -74,6 +74,9 @@ public class EventsController : Controller
 
         var clientIp = HttpContext.ResolveClientIpAddress();
         var location = _geoIP.GetClientLocation(HttpContext);
+
+        clientIp = ObfuscateClientIp(clientIp);
+
         var trackingEvent = NewTrackingEvent(app.Id, location.CountryCode, location.RegionName, clientIp, userAgent ?? "", body);
         _buffer.Add(ref trackingEvent);
 
@@ -121,6 +124,9 @@ public class EventsController : Controller
 
         var clientIp = HttpContext.ResolveClientIpAddress();
         var location = _geoIP.GetClientLocation(HttpContext);
+
+        clientIp = ObfuscateClientIp(clientIp);
+
         var trackingEvents = validEvents.Select(e => NewTrackingEvent(app.Id, location.CountryCode, location.RegionName, clientIp, userAgent ?? "", e));
 
         _buffer.AddRange(ref trackingEvents);
@@ -169,5 +175,12 @@ public class EventsController : Controller
             NumericProps = numericProps.ToJsonString(),
             IsDebug = body.SystemProps.IsDebug,
         };
+    }
+
+    private static string ObfuscateClientIp(string clientIp)
+    {
+        var bytes = System.Text.Encoding.UTF8.GetBytes(clientIp);
+        var hash = System.Security.Cryptography.SHA3_256.HashData(bytes);
+        return System.Convert.ToBase64String(hash);
     }
 }

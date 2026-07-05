@@ -23,22 +23,22 @@ public class DailyUserHasher : IUserHasher
         _cache = cache ?? throw new ArgumentNullException(nameof(cache));
     }
 
-    public async Task<string> CalculateHash(DateTime timestamp, string appId, string sessionId, string clientIP, string userAgent)
+    public Task<string> CalculateHash(DateTime timestamp, string appId, string sessionId, string clientIP, string userAgent)
     {
         var cacheKey = $"USERID-{appId}-{sessionId}";
 
         // If we already have a cached user ID for this session, return it immediately
         // This avoid issues with the user ID changing in the middle of a session because of an IP change
         if (_cache.TryGetValue(cacheKey, out string? userId) && !string.IsNullOrEmpty(userId))
-            return userId;
+            return Task.FromResult(userId);
 
-        var salt = await GetSaltFor(timestamp.Date.ToString("yyyy-MM-dd"), appId);
+        var salt = GetSaltFor(appId);
         var bytes = Encoding.UTF8.GetBytes($"{clientIP}|${userAgent}");
         var hash = ComputeHash(salt, bytes);
         userId = Convert.ToHexString(hash);
 
         _cache.Set(cacheKey, userId, TimeSpan.FromHours(48));
-        return userId;
+        return Task.FromResult(userId);
     }
 
     private static byte[] ComputeHash(Span<byte> salt, byte[] bytes)
@@ -49,22 +49,26 @@ public class DailyUserHasher : IUserHasher
         return hasher.ComputeHash(bytes);
     }
 
-    private async Task<byte[]> GetSaltFor(string date, string appId)
+    private byte[] GetSaltFor(string appId)
     {
-        var cacheKey = $"DAILY-SALT-{appId}-{date}";
+        var cacheKey = $"SALT-{appId}";
         if (_cache.TryGetValue(cacheKey, out byte[]? cachedSalt) && cachedSalt != null)
             return cachedSalt;
 
-        var storedSalt = await ReadOrCreateSalt(date, appId);
+        var storedSalt = CreateSalt(appId);
         _cache.Set(cacheKey, storedSalt, TimeSpan.FromDays(2));
         return storedSalt;
     }
 
-    private async Task<byte[]> ReadOrCreateSalt(string date, string appId)
+    private static byte[] CreateSalt(string appId)
     {
-        var newSalt = RandomNumberGenerator.GetBytes(16);
-        await _db.Connection.ExecuteAsync($"INSERT INTO app_salts (app_id, date, salt) VALUES (@appId, @date, @newSalt) ON CONFLICT DO NOTHING", new { appId, date, newSalt });
-        var bytes = await _db.Connection.ExecuteScalarAsync<byte[]>($"SELECT salt FROM app_salts WHERE app_id = @appId AND date = @date", new { appId, date });
-        return bytes ?? newSalt;
+        var bytes = System.Text.Encoding.UTF8.GetBytes(appId);
+        var hash = System.Security.Cryptography.Shake128.HashData(bytes, 16);
+        if (hash.Length != 16)
+        {
+            Array.Resize(ref hash, 16);
+        }
+
+        return hash;
     }
 }
